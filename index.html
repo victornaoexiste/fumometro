@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fumômetro</title>
+<style>
+  :root {
+    --bg: #14161a; --card: #1e2127; --card2: #262a31; --text: #e8e6e3; --muted: #9aa0a8;
+    --accent: #e0a45a; --tabaco: #c98b4b; --erva: #6fbf73; --danger: #e06060; --border: #30343c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: system-ui, sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.4rem; margin: 4px 0 16px; }
+  h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+  .tabs button { flex: 1; padding: 10px; background: var(--card); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; font-size: .95rem; cursor: pointer; }
+  .tabs button.on { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 700; }
+  .page { display: none; } .page.on { display: block; }
+  label { display: block; font-size: .85rem; color: var(--muted); margin: 10px 0 4px; }
+  input, select { width: 100%; padding: 10px; background: var(--card2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-size: 1rem; }
+  .row { display: flex; gap: 10px; } .row > * { flex: 1; min-width: 0; }
+  button.main { width: 100%; padding: 18px; margin-top: 14px; font-size: 1.25rem; font-weight: 800; background: var(--accent); color: #1a1a1a; border: 0; border-radius: 12px; cursor: pointer; }
+  button.sec { padding: 10px 14px; background: var(--card2); color: var(--text); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+  .presets { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+  .presets button { padding: 6px 10px; background: var(--card2); color: var(--text); border: 1px solid var(--border); border-radius: 20px; cursor: pointer; font-size: .85rem; }
+  .stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat { background: var(--card2); border-radius: 10px; padding: 12px; }
+  .stat .v { font-size: 1.35rem; font-weight: 800; }
+  .stat .l { font-size: .78rem; color: var(--muted); }
+  .flash { display: none; background: #2b2417; border: 1px solid var(--accent); border-radius: 12px; padding: 16px; margin-bottom: 16px; text-align: center; }
+  .flash .big { font-size: 1.8rem; font-weight: 800; color: var(--accent); }
+  .item { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .item:last-child { border-bottom: 0; }
+  .item .sub { font-size: .8rem; color: var(--muted); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: .72rem; font-weight: 700; color: #1a1a1a; }
+  .tag.tabaco { background: var(--tabaco); } .tag.erva { background: var(--erva); }
+  .del { background: none; border: 0; color: var(--danger); font-size: 1.1rem; cursor: pointer; }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 130px; }
+  .bar { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+  .bar .fill { width: 100%; border-radius: 4px 4px 0 0; display: flex; flex-direction: column-reverse; overflow: hidden; }
+  .bar .fill div { width: 100%; }
+  .bar .d { font-size: .65rem; color: var(--muted); margin-top: 4px; }
+  .legend { font-size: .8rem; color: var(--muted); margin-top: 8px; }
+  .legend span { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 10px; vertical-align: middle; }
+  .stock { height: 8px; background: var(--card2); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+  .stock div { height: 100%; }
+  .muted { color: var(--muted); font-size: .9rem; }
+  .seg { display: flex; gap: 6px; margin-bottom: 12px; }
+  .seg button { flex: 1; padding: 8px; background: var(--card2); color: var(--muted); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; }
+  .seg button.on { color: var(--text); border-color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🚬 Fumômetro</h1>
+
+  <div class="tabs">
+    <button data-p="fumar" class="on">Fumar</button>
+    <button data-p="stats">Estatísticas</button>
+    <button data-p="estoque">Estoque</button>
+    <button data-p="hist">Histórico</button>
+  </div>
+
+  <!-- FUMAR -->
+  <section class="page on" id="p-fumar">
+    <div class="flash" id="flash"></div>
+    <div class="card">
+      <h2>Registrar uma fumada</h2>
+      <div id="noProd" class="muted" style="display:none">Cadastre um fumo na aba <b>Estoque</b> primeiro.</div>
+      <div id="formFumar">
+        <label>O que você fumou?</label>
+        <select id="fProd"></select>
+        <label>Quanto? (gramas)</label>
+        <input id="fQtd" type="number" step="0.05" min="0" inputmode="decimal">
+        <div class="presets" id="presets"></div>
+        <label>Quando?</label>
+        <input id="fData" type="datetime-local">
+        <button class="main" id="btnFumar">FUMEI 🔥</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Hoje</h2>
+      <div class="stats" id="hojeStats"></div>
+    </div>
+  </section>
+
+  <!-- STATS -->
+  <section class="page" id="p-stats">
+    <div class="seg" id="periodo">
+      <button data-d="1">Hoje</button>
+      <button data-d="7" class="on">7 dias</button>
+      <button data-d="30">30 dias</button>
+      <button data-d="0">Tudo</button>
+    </div>
+    <div class="card">
+      <h2>Resumo</h2>
+      <div class="stats" id="resumo"></div>
+    </div>
+    <div class="card">
+      <h2>Gramas por dia (últimos 14 dias)</h2>
+      <div class="bars" id="bars"></div>
+      <div class="legend"><span style="background:var(--tabaco)"></span>Tabaco<span style="background:var(--erva)"></span>Erva</div>
+    </div>
+    <div class="card">
+      <h2>Por fumo</h2>
+      <div id="porProd"></div>
+    </div>
+  </section>
+
+  <!-- ESTOQUE -->
+  <section class="page" id="p-estoque">
+    <div class="card">
+      <h2>Registrar compra</h2>
+      <div class="row">
+        <div><label>Nome</label><input id="cNome" list="nomes" placeholder="ex: Acrema, Seda..."><datalist id="nomes"></datalist></div>
+        <div><label>Tipo</label><select id="cTipo"><option value="tabaco">Tabaco</option><option value="erva">Erva</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Quantidade (g)</label><input id="cGramas" type="number" step="0.1" min="0" inputmode="decimal"></div>
+        <div><label>Preço pago (R$)</label><input id="cPreco" type="number" step="0.01" min="0" inputmode="decimal"></div>
+      </div>
+      <label>Tamanho padrão de uma fumada (g)</label>
+      <input id="cPadrao" type="number" step="0.05" min="0" inputmode="decimal" placeholder="ex: 0.5">
+      <button class="main" id="btnComprar">Adicionar ao estoque</button>
+      <p class="muted">Se o nome já existe, soma no estoque e recalcula o preço médio por grama.</p>
+    </div>
+    <div class="card">
+      <h2>Seus fumos</h2>
+      <div id="listaProd"></div>
+    </div>
+    <div class="card">
+      <h2>Backup</h2>
+      <div class="row">
+        <button class="sec" id="btnExport">Exportar JSON</button>
+        <button class="sec" id="btnImport">Importar JSON</button>
+      </div>
+      <input type="file" id="fileImport" accept=".json" style="display:none">
+      <p class="muted">Os dados ficam salvos só neste navegador. Exporte de vez em quando.</p>
+    </div>
+  </section>
+
+  <!-- HISTORICO -->
+  <section class="page" id="p-hist">
+    <div class="card">
+      <h2>Fumadas</h2>
+      <div id="listaSess"></div>
+    </div>
+    <div class="card">
+      <h2>Compras</h2>
+      <div id="listaCompras"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const KEY = 'fumometro_v1';
+let db = load();
+
+function load() {
+  try { return JSON.parse(localStorage.getItem(KEY)) || { produtos: [], compras: [], sessoes: [] }; }
+  catch { return { produtos: [], compras: [], sessoes: [] }; }
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const $ = id => document.getElementById(id);
+const brl = v => 'R$ ' + (v || 0).toFixed(2).replace('.', ',');
+const g = v => (v || 0).toFixed(2).replace('.', ',') + ' g';
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const prod = id => db.produtos.find(p => p.id === id);
+
+// preço médio por grama = total gasto em compras / total de gramas comprado
+function precoGrama(p) {
+  const cs = db.compras.filter(c => c.prod === p.id);
+  const gr = cs.reduce((a, c) => a + c.gramas, 0);
+  const rs = cs.reduce((a, c) => a + c.preco, 0);
+  return gr ? rs / gr : 0;
+}
+function estoque(p) {
+  const comprado = db.compras.filter(c => c.prod === p.id).reduce((a, c) => a + c.gramas, 0);
+  const usado = db.sessoes.filter(s => s.prod === p.id).reduce((a, s) => a + s.gramas, 0);
+  return { comprado, usado, resta: comprado - usado };
+}
+function localNow() {
+  const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+function inicioDia(d = new Date()) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function sessoesDesde(dias) {
+  if (!dias) return db.sessoes;
+  const ini = inicioDia(); ini.setDate(ini.getDate() - (dias - 1));
+  return db.sessoes.filter(s => new Date(s.ts) >= ini);
+}
+function resumoDe(ss) {
+  const r = { n: ss.length, gramas: 0, custo: 0, tabaco: 0, erva: 0 };
+  ss.forEach(s => {
+    r.gramas += s.gramas; r.custo += s.custo;
+    const p = prod(s.prod); if (p) r[p.tipo] += s.gramas;
+  });
+  return r;
+}
+function stat(v, l) { return `<div class="stat"><div class="v">${v}</div><div class="l">${l}</div></div>`; }
+
+// ---------- abas ----------
+document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('on', x === b));
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'p-' + b.dataset.p));
+  render();
+});
+let periodo = 7;
+document.querySelectorAll('#periodo button').forEach(b => b.onclick = () => {
+  periodo = +b.dataset.d;
+  document.querySelectorAll('#periodo button').forEach(x => x.classList.toggle('on', x === b));
+  renderStats();
+});
+
+// ---------- fumar ----------
+function renderFumar() {
+  const tem = db.produtos.length > 0;
+  $('noProd').style.display = tem ? 'none' : 'block';
+  $('formFumar').style.display = tem ? 'block' : 'none';
+  const atual = $('fProd').value || localStorage.getItem(KEY + '_ult');
+  $('fProd').innerHTML = db.produtos.map(p => {
+    const e = estoque(p);
+    return `<option value="${p.id}">${esc(p.nome)} (${p.tipo}) — resta ${g(e.resta)}</option>`;
+  }).join('');
+  if (atual && prod(atual)) $('fProd').value = atual;
+  if (!$('fData').value) $('fData').value = localNow();
+  atualizaPresets();
+
+  const r = resumoDe(sessoesDesde(1));
+  $('hojeStats').innerHTML = stat(r.n, 'fumadas') + stat(g(r.gramas), 'consumido') +
+    stat(brl(r.custo), 'gasto em fumo') + stat(r.n ? g(r.gramas / r.n) : '—', 'média por fumada');
+}
+function atualizaPresets() {
+  const p = prod($('fProd').value); if (!p) return;
+  if (!$('fQtd').dataset.touched) $('fQtd').value = p.padrao || '';
+  const base = [0.1, 0.25, 0.5, 0.75, 1];
+  if (p.padrao && !base.includes(p.padrao)) base.push(p.padrao);
+  $('presets').innerHTML = base.sort((a, b) => a - b).map(v => `<button data-v="${v}">${String(v).replace('.', ',')} g</button>`).join('');
+  $('presets').querySelectorAll('button').forEach(b => b.onclick = () => { $('fQtd').value = b.dataset.v; $('fQtd').dataset.touched = 1; });
+}
+$('fProd').onchange = () => { delete $('fQtd').dataset.touched; atualizaPresets(); };
+$('fQtd').oninput = () => $('fQtd').dataset.touched = 1;
+
+$('btnFumar').onclick = () => {
+  const p = prod($('fProd').value);
+  const gramas = parseFloat($('fQtd').value);
+  if (!p || !(gramas > 0)) return alert('Informe a quantidade em gramas.');
+  const custo = gramas * precoGrama(p);
+  const ts = $('fData').value ? new Date($('fData').value).toISOString() : new Date().toISOString();
+  db.sessoes.push({ id: uid(), prod: p.id, gramas, custo, ts });
+  save();
+  localStorage.setItem(KEY + '_ult', p.id);
+
+  const e = estoque(p), hoje = resumoDe(sessoesDesde(1));
+  const f = $('flash');
+  f.innerHTML = `<div class="muted">Essa fumada de ${esc(p.nome)} custou</div>
+    <div class="big">${brl(custo)}</div>
+    <div>${g(gramas)} · restam ${g(e.resta)} no estoque</div>
+    <div class="muted" style="margin-top:8px">Hoje: ${hoje.n} fumada(s), ${g(hoje.gramas)}, ${brl(hoje.custo)}</div>`;
+  f.style.display = 'block';
+  $('fData').value = localNow();
+  delete $('fQtd').dataset.touched;
+  render();
+};
+
+// ---------- estoque ----------
+$('btnComprar').onclick = () => {
+  const nome = $('cNome').value.trim();
+  const gramas = parseFloat($('cGramas').value), preco = parseFloat($('cPreco').value);
+  const padrao = parseFloat($('cPadrao').value);
+  if (!nome || !(gramas > 0) || !(preco >= 0)) return alert('Preencha nome, gramas e preço.');
+  let p = db.produtos.find(x => x.nome.toLowerCase() === nome.toLowerCase());
+  if (!p) { p = { id: uid(), nome, tipo: $('cTipo').value, padrao: padrao > 0 ? padrao : 0.5 }; db.produtos.push(p); }
+  else if (padrao > 0) p.padrao = padrao;
+  db.compras.push({ id: uid(), prod: p.id, gramas, preco, ts: new Date().toISOString() });
+  save();
+  ['cNome', 'cGramas', 'cPreco', 'cPadrao'].forEach(i => $(i).value = '');
+  render();
+};
+$('cNome').oninput = () => {
+  const p = db.produtos.find(x => x.nome.toLowerCase() === $('cNome').value.trim().toLowerCase());
+  if (p) { $('cTipo').value = p.tipo; $('cPadrao').placeholder = 'atual: ' + p.padrao; }
+};
+function renderEstoque() {
+  $('nomes').innerHTML = db.produtos.map(p => `<option value="${esc(p.nome)}">`).join('');
+  $('listaProd').innerHTML = db.produtos.length ? db.produtos.map(p => {
+    const e = estoque(p), pct = e.comprado ? Math.max(0, e.resta / e.comprado * 100) : 0;
+    return `<div class="item" style="display:block">
+      <div style="display:flex;justify-content:space-between;gap:10px">
+        <div><b>${esc(p.nome)}</b> <span class="tag ${p.tipo}">${p.tipo}</span>
+          <div class="sub">${brl(precoGrama(p))}/g · fumada padrão ${g(p.padrao)} ≈ ${brl(p.padrao * precoGrama(p))}</div></div>
+        <div style="text-align:right"><b>${g(e.resta)}</b><div class="sub">de ${g(e.comprado)}</div></div>
+      </div>
+      <div class="stock"><div style="width:${pct}%;background:var(--${p.tipo})"></div></div>
+      <div style="text-align:right;margin-top:6px"><button class="del" data-del="${p.id}" title="Apagar fumo e todo o histórico dele">apagar</button></div>
+    </div>`;
+  }).join('') : '<p class="muted">Nada cadastrado ainda.</p>';
+  $('listaProd').querySelectorAll('[data-del]').forEach(b => b.onclick = () => {
+    const p = prod(b.dataset.del);
+    if (!confirm(`Apagar "${p.nome}" e todas as compras/fumadas dele?`)) return;
+    db.produtos = db.produtos.filter(x => x.id !== p.id);
+    db.compras = db.compras.filter(x => x.prod !== p.id);
+    db.sessoes = db.sessoes.filter(x => x.prod !== p.id);
+    save(); render();
+  });
+}
+
+// ---------- estatísticas ----------
+function renderStats() {
+  const ss = sessoesDesde(periodo), r = resumoDe(ss);
+  let dias = periodo;
+  if (!dias) {
+    const first = db.sessoes.reduce((m, s) => Math.min(m, new Date(s.ts)), Date.now());
+    dias = Math.max(1, Math.ceil((inicioDia() - inicioDia(new Date(first))) / 864e5) + 1);
+  }
+  const ini = periodo ? (() => { const d = inicioDia(); d.setDate(d.getDate() - (periodo - 1)); return d; })() : new Date(0);
+  const gastoCompras = db.compras.filter(c => new Date(c.ts) >= ini).reduce((a, c) => a + c.preco, 0);
+  $('resumo').innerHTML =
+    stat(r.n, 'fumadas') + stat((r.n / dias).toFixed(1).replace('.', ','), 'fumadas por dia') +
+    stat(g(r.gramas), 'total consumido') + stat(g(r.gramas / dias), 'gramas por dia') +
+    stat(brl(r.custo), 'valor fumado') + stat(brl(r.custo / dias), 'custo por dia') +
+    stat(g(r.tabaco), 'tabaco') + stat(g(r.erva), 'erva') +
+    stat(brl(gastoCompras), 'gasto em compras no período') + stat(brl(r.custo / dias * 30), 'projeção por mês');
+
+  // barras 14 dias
+  const hoje = inicioDia(), cols = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(hoje); d.setDate(d.getDate() - i);
+    const fim = new Date(d); fim.setDate(fim.getDate() + 1);
+    cols.push({ d, ...resumoDe(db.sessoes.filter(s => { const t = new Date(s.ts); return t >= d && t < fim; })) });
+  }
+  const max = Math.max(0.01, ...cols.map(c => c.gramas));
+  $('bars').innerHTML = cols.map(c => `<div class="bar" title="${c.d.toLocaleDateString('pt-BR')}: ${g(c.gramas)} · ${brl(c.custo)} · ${c.n} fumada(s)">
+    <div class="fill" style="height:${c.gramas / max * 100}%">
+      <div style="height:${c.gramas ? c.tabaco / c.gramas * 100 : 0}%;background:var(--tabaco)"></div>
+      <div style="height:${c.gramas ? c.erva / c.gramas * 100 : 0}%;background:var(--erva)"></div>
+    </div><div class="d">${c.d.getDate()}</div></div>`).join('');
+
+  $('porProd').innerHTML = db.produtos.map(p => {
+    const rp = resumoDe(ss.filter(s => s.prod === p.id));
+    if (!rp.n) return '';
+    return `<div class="item"><div><b>${esc(p.nome)}</b> <span class="tag ${p.tipo}">${p.tipo}</span>
+      <div class="sub">${rp.n} fumada(s) · média ${g(rp.gramas / rp.n)}</div></div>
+      <div style="text-align:right"><b>${g(rp.gramas)}</b><div class="sub">${brl(rp.custo)}</div></div></div>`;
+  }).join('') || '<p class="muted">Nenhuma fumada no período.</p>';
+}
+
+// ---------- histórico ----------
+function renderHist() {
+  const fmt = ts => new Date(ts).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  const ss = [...db.sessoes].sort((a, b) => b.ts.localeCompare(a.ts)).slice(0, 200);
+  $('listaSess').innerHTML = ss.map(s => {
+    const p = prod(s.prod);
+    return `<div class="item"><div><b>${esc(p ? p.nome : '?')}</b> ${p ? `<span class="tag ${p.tipo}">${p.tipo}</span>` : ''}
+      <div class="sub">${fmt(s.ts)}</div></div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="text-align:right">${g(s.gramas)}<div class="sub">${brl(s.custo)}</div></div>
+      <button class="del" data-s="${s.id}">✕</button></div></div>`;
+  }).join('') || '<p class="muted">Nenhuma fumada ainda.</p>';
+  const cs = [...db.compras].sort((a, b) => b.ts.localeCompare(a.ts));
+  $('listaCompras').innerHTML = cs.map(c => {
+    const p = prod(c.prod);
+    return `<div class="item"><div><b>${esc(p ? p.nome : '?')}</b><div class="sub">${fmt(c.ts)}</div></div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="text-align:right">${g(c.gramas)}<div class="sub">${brl(c.preco)}</div></div>
+      <button class="del" data-c="${c.id}">✕</button></div></div>`;
+  }).join('') || '<p class="muted">Nenhuma compra ainda.</p>';
+  $('listaSess').querySelectorAll('[data-s]').forEach(b => b.onclick = () => {
+    if (!confirm('Apagar essa fumada?')) return;
+    db.sessoes = db.sessoes.filter(x => x.id !== b.dataset.s); save(); render();
+  });
+  $('listaCompras').querySelectorAll('[data-c]').forEach(b => b.onclick = () => {
+    if (!confirm('Apagar essa compra?')) return;
+    db.compras = db.compras.filter(x => x.id !== b.dataset.c); save(); render();
+  });
+}
+
+// ---------- backup ----------
+$('btnExport').onclick = () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(db, null, 2)], { type: 'application/json' }));
+  a.download = `fumometro-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+};
+$('btnImport').onclick = () => $('fileImport').click();
+$('fileImport').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const d = JSON.parse(await f.text());
+    if (!d.produtos || !d.compras || !d.sessoes) throw 0;
+    if (!confirm('Substituir todos os dados atuais pelo backup?')) return;
+    db = d; save(); render();
+  } catch { alert('Arquivo inválido.'); }
+  e.target.value = '';
+};
+
+function render() { renderFumar(); renderEstoque(); renderStats(); renderHist(); }
+render();
+</script>
+</body>
+</html>
